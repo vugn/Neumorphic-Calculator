@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:neumorphic_calculator/service/preference_service.dart';
+import 'package:neumorphic_calculator/controllers/preference_controller.dart';
 import 'package:neumorphic_calculator/utils/const.dart';
+import 'package:neumorphic_calculator/utils/extensions/theme_extension.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen({super.key, required this.child});
+
   final Widget child;
 
   @override
@@ -16,34 +18,31 @@ class _TutorialScreenState extends State<TutorialScreen>
     with TickerProviderStateMixin {
   late TutorialCoachMark tutorialCoachMark;
   final historyKey = GlobalKey();
-  final swipeUpKey = GlobalKey();
   final settingsKey = GlobalKey();
   bool showSettings = false;
   bool showHistory = false;
-  bool showSwipeUp = false;
   bool ignorePointer = false;
 
   late AnimationController _swipeRightController;
   late AnimationController _swipeLeftController;
-  late AnimationController _swipeUpController;
 
   void _initAnimations() {
     _swipeRightController =
         AnimationController(vsync: this, duration: const Duration(seconds: 2));
     _swipeLeftController =
         AnimationController(vsync: this, duration: const Duration(seconds: 2));
-    _swipeUpController =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2));
   }
 
   @override
   void initState() {
-    if (PreferencesService.isFirstRun) {
+    if (PreferencesController.instance.isFirstRun) {
       ignorePointer = true;
       initTutorial();
       _initAnimations();
       Future.delayed(const Duration(seconds: 2), () {
-        tutorialCoachMark.show(context: context);
+        if (mounted) {
+          tutorialCoachMark.show(context: context);
+        }
         setState(() {
           showSettings = true;
         });
@@ -66,14 +65,7 @@ class _TutorialScreenState extends State<TutorialScreen>
       _swipeLeftController.stop();
       setState(() {
         showHistory = false;
-        showSwipeUp = true;
       });
-      _swipeUpController.repeat();
-    } else if (target.identify == 'swipeup') {
-      setState(() {
-        showSwipeUp = false;
-      });
-      _swipeUpController.stop();
     }
   }
 
@@ -85,13 +77,11 @@ class _TutorialScreenState extends State<TutorialScreen>
       onSkip: () {
         setState(() {
           showHistory = false;
-          showSwipeUp = false;
           showHistory = false;
           ignorePointer = false;
         });
         _swipeRightController.stop();
         _swipeLeftController.stop();
-        _swipeUpController.stop();
         return true;
       },
       onFinish: () {
@@ -100,7 +90,6 @@ class _TutorialScreenState extends State<TutorialScreen>
         });
         _swipeRightController.stop();
         _swipeLeftController.stop();
-        _swipeUpController.stop();
       },
       paddingFocus: 0.0,
       targets: [
@@ -160,40 +149,6 @@ class _TutorialScreenState extends State<TutorialScreen>
             ),
           ],
         ),
-        TargetFocus(
-          identify: 'swipeup',
-          keyTarget: swipeUpKey,
-          paddingFocus: 0.0,
-          alignSkip: Alignment.bottomRight,
-          enableOverlayTab: true,
-          contents: [
-            TargetContent(
-              align: ContentAlign.top,
-              builder: (context, controller) {
-                return const Column(
-                  mainAxisSize: MainAxisSize.max,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      'Swipe up to view quick settings',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 20),
-                    ),
-                    Text(
-                      'and enable scientific calculator',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 18),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
       ],
       colorShadow: Colors.blue,
     );
@@ -201,8 +156,8 @@ class _TutorialScreenState extends State<TutorialScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (!PreferencesService.isFirstRun) {
+    final isDark = Theme.of(context).isDarkMode;
+    if (!PreferencesController.instance.isFirstRun) {
       return widget.child;
     }
 
@@ -215,8 +170,9 @@ class _TutorialScreenState extends State<TutorialScreen>
               opacity: showSettings ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
               child: Material(
-                color:
-                    isDark ? Colors.transparent : Colors.grey.withOpacity(0.5),
+                color: isDark
+                    ? Colors.transparent
+                    : Colors.grey.withValues(alpha: 0.5),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Lottie.asset(AppConst.swipeRightGesture,
@@ -233,8 +189,9 @@ class _TutorialScreenState extends State<TutorialScreen>
               opacity: showHistory ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
               child: Material(
-                color:
-                    isDark ? Colors.transparent : Colors.grey.withOpacity(0.5),
+                color: isDark
+                    ? Colors.transparent
+                    : Colors.grey.withValues(alpha: 0.5),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Lottie.asset(AppConst.swipeLeftGesture,
@@ -242,24 +199,6 @@ class _TutorialScreenState extends State<TutorialScreen>
                       height: 150,
                       width: 150,
                       controller: _swipeLeftController),
-                ),
-              )),
-        ),
-        IgnorePointer(
-          ignoring: true,
-          child: AnimatedOpacity(
-              opacity: showSwipeUp ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Material(
-                color:
-                    isDark ? Colors.transparent : Colors.grey.withOpacity(0.5),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Lottie.asset(AppConst.swipeUpGesture,
-                      key: swipeUpKey,
-                      height: 150,
-                      width: 150,
-                      controller: _swipeUpController),
                 ),
               )),
         ),
